@@ -13,14 +13,14 @@ namespace esp32_control
     public class Program
     {
 
-        private static string _ssid = "BT-6GA2Q3";
-        private static string _wifiPassword = "MHuCh67Q7XDPK4";
+        private static string _ssid = "ENTER WIFI SSDI";
+        private static string _wifiPassword = "ENTER WIFI PASSWORD";
 
         // Azure IoTHub settings
-        const string _hubName = "percepthub1";
-        const string _deviceId = "devicecontrol";
-        const string _IotBrokerAddress = "percepthub1.azure-devices.net";
-        const string _SasKey = "wcSCL8lgRGvGlPXfa29n5ZLwAQXZXY4PwNuw9V+DM6Q=";
+        const string _hubName = "ENTER IOT HUB NAME";
+        const string _deviceId = "ENTER IOT DEVICE ID";
+        const string _IotBrokerAddress = "ENTER IOT HUB URL";
+        const string _SasKey = "ENTER IOT DEVICE PRIMARY KEY";
 
         private static GpioController s_GpioController;
 
