@@ -7,8 +7,9 @@ using nanoFramework.Azure.Devices.Shared;
 using nanoFramework.Networking;
 using nanoFramework.Json;
 using System.Device.Gpio;
+using System.Security.Cryptography.X509Certificates;
 
-namespace esp32_control
+namespace star_wars
 {
     public class Program
     {
@@ -24,36 +25,57 @@ namespace esp32_control
         
         private static GpioController s_GpioController;
 
-        private static GpioPin whiteLED;
         private static GpioPin blueLED;
-        private static GpioPin greenLED;
-        private static GpioPin yellowLED;
+        private const int blueLEDPin = 2;
         private static GpioPin redLED;
+        private const int redLEDPin = 5;
+        private static GpioPin speaker;
+        private const int speakerPin = 21;
 
         private static bool isBlinking = false;
+
+        private const int c = 261;
+        private const int d = 294;
+        private const int e = 329;
+        private const int f = 349;
+        private const int fS = 370;
+        private const int g = 391;
+        private const int gS = 415;
+        private const int a = 440;
+        private const int aS = 466;
+        private const int b = 494;
+        private const int cH = 523;
+        private const int cSH = 554;
+        private const int dH = 587;
+        private const int dSH = 622;
+        private const int eH = 659;
+        private const int fH = 698;
+        private const int fSH = 740;
+        private const int gH = 784;
+        private const int gSH = 830;
+        private const int aH = 880;
+
+        // frequencies for the tones we're going to use
+        // used http://home.mit.bme.hu/~bako/tonecalc/tonecalc.htm to get these
 
         public static void Main()
         {
             Debug.WriteLine("Hello from nanoFramework!");
 
-            DeviceClient azureIoT = new DeviceClient(_IotBrokerAddress, _deviceId, _SasKey);
-
+            DeviceClient azureIoT = new DeviceClient(_hubName, _deviceId, _SasKey);
+            
             try
             {
 
                 s_GpioController = new GpioController();
 
-                whiteLED = s_GpioController.OpenPin(1, PinMode.Output);
-                blueLED = s_GpioController.OpenPin(2, PinMode.Output);
-                greenLED = s_GpioController.OpenPin(3, PinMode.Output);
-                yellowLED = s_GpioController.OpenPin(4, PinMode.Output);
-                redLED = s_GpioController.OpenPin(5, PinMode.Output);
+                blueLED = s_GpioController.OpenPin(blueLEDPin, PinMode.Output);
+                redLED = s_GpioController.OpenPin(redLEDPin, PinMode.Output);
+                speaker = s_GpioController.OpenPin(speakerPin, PinMode.Output);
 
-                whiteLED.Write(PinValue.Low);
                 blueLED.Write(PinValue.Low);
-                greenLED.Write(PinValue.Low);
-                yellowLED.Write(PinValue.Low);
                 redLED.Write(PinValue.Low);
+                speaker.Write(PinValue.Low);
 
                 if (!ConnectToWifi()) return;
 
@@ -91,14 +113,8 @@ namespace esp32_control
                 Debug.WriteLine(ex.ToString());
             }
 
-            Thread whiteLEDThread = new Thread(BlinkWhiteLED);
-            whiteLEDThread.Start();
             Thread blueLEDThread = new Thread(BlinkBlueLED);
             blueLEDThread.Start();
-            Thread greenLEDThread = new Thread(BlinkGreenLED);
-            greenLEDThread.Start();
-            Thread yellowLEDThread = new Thread(BlinkYellowLED);
-            yellowLEDThread.Start();
             Thread redLEDThread = new Thread(BlinkRedLED);
             redLEDThread.Start();
 
@@ -106,23 +122,124 @@ namespace esp32_control
 
         }
 
-        public static void BlinkWhiteLED()
+        public static void beep(int frequencyInHertz, int timeInMilliseconds)
         {
-            while (true)
-            {
-                if (isBlinking)
-                {
-                    var randomGenerator = new Random();
-                    var randomDelay = randomGenerator.Next(1000);
+            int delayAmount = (1000000 / frequencyInHertz);
+            // the lesser delay the higher the note
 
-                    whiteLED.Toggle();
-                    Thread.Sleep(randomDelay);
-                }
-                else
-                {
-                    whiteLED.Write(PinValue.Low);
-                }
+            int timeInSeconds = timeInMilliseconds * 1000;
+
+            int beepDuration = (timeInSeconds / (delayAmount * 2));
+
+            for (int i = 0; i < beepDuration; i++)
+            {
+                speaker.Write(1);
+                Thread.Sleep(delayAmount);
+                speaker.Write(0);
+                Thread.Sleep(delayAmount);
             }
+
+            Thread.Sleep(20);
+            // a little delay to make all notes sound separate
+        }
+
+        public static void startImperialMarch()
+        {
+
+            // for the sheet music see:
+            // http://www.musicnotes.com/sheetmusic/mtd.asp?ppn=MN0016254
+            // this is just a translation of said sheet music to frequencies / time in ms
+            // used 500 ms for a quart note
+
+            beep(a, 500);
+            beep(a, 500);
+            beep(a, 500);
+            beep(f, 350);
+            beep(cH, 150);
+
+            beep(a, 500);
+            beep(f, 350);
+            beep(cH, 150);
+            beep(a, 1000);
+            // first bit
+
+            beep(eH, 500);
+            beep(eH, 500);
+            beep(eH, 500);
+            beep(fH, 350);
+            beep(cH, 150);
+
+            beep(gS, 500);
+            beep(f, 350);
+            beep(cH, 150);
+            beep(a, 1000);
+            //second bit...
+
+            beep(aH, 500);
+            beep(a, 350);
+            beep(a, 150);
+            beep(aH, 500);
+            beep(gSH, 350);
+            beep(gH, 125);
+
+            beep(fSH, 125);
+            beep(fH, 125);
+            beep(fSH, 250);
+            Thread.Sleep(250);
+            beep(aS, 250);
+            beep(dSH, 500);
+            beep(dH, 350);
+            beep(cSH, 125);
+            // start of the interesting bit
+
+            beep(cH, 125);
+            beep(b, 125);
+            beep(cH, 250);
+            Thread.Sleep(250);
+            beep(f, 250);
+            beep(gS, 500);
+            beep(f, 375);
+            beep(a, 125);
+
+            beep(cH, 500);
+            beep(a, 375);
+            beep(cH, 125);
+            beep(eH, 1000);
+            // more interesting stuff
+
+            beep(aH, 500);
+            beep(a, 350);
+            beep(a, 150);
+            beep(aH, 500);
+            beep(gSH, 350);
+            beep(gH, 125);
+
+            beep(fSH, 125);
+            beep(fH, 125);
+            beep(fSH, 250);
+            Thread.Sleep(250);
+            beep(aS, 250);
+            beep(dSH, 500);
+            beep(dH, 350);
+            beep(cSH, 125);
+            // repeat... repeat
+
+            beep(cH, 125);
+            beep(b, 125);
+            beep(cH, 250);
+            Thread.Sleep(250);
+            beep(f, 250);
+            beep(gS, 500);
+            beep(f, 375);
+            beep(cH, 125);
+
+            beep(a, 500);
+            beep(f, 375);
+            beep(cH, 125);
+            beep(a, 1000);
+            // and we're done \�/
+
+            
         }
 
         public static void BlinkBlueLED()
@@ -144,43 +261,6 @@ namespace esp32_control
             }
         }
 
-        public static void BlinkGreenLED()
-        {
-            while (true)
-            {
-                if (isBlinking)
-                {
-                    var randomGenerator = new Random();
-                    var randomDelay = randomGenerator.Next(1000);
-
-                    greenLED.Toggle();
-                    Thread.Sleep(randomDelay);
-                }
-                else
-                {
-                    greenLED.Write(PinValue.Low);
-                }
-            }
-        }
-
-        public static void BlinkYellowLED()
-        {
-            while (true)
-            {
-                if (isBlinking)
-                {
-                    var randomGenerator = new Random();
-                    var randomDelay = randomGenerator.Next(1000);
-
-                    yellowLED.Toggle();
-                    Thread.Sleep(randomDelay);
-                }
-                else
-                {
-                    yellowLED.Write(PinValue.Low);
-                }
-            }
-        }
         public static void BlinkRedLED()
         {
             while (true)
@@ -206,11 +286,11 @@ namespace esp32_control
 
             // As we are using TLS, we need a valid date & time
             // We will wait maximum 1 minute to get connected and have a valid date
-            var success = NetworkHelper.ConnectWifiDhcp(_ssid, _wifiPassword, setDateTime: true, token: new CancellationTokenSource(60000).Token);
+            var success = WiFiNetworkHelper.ConnectDhcp(_ssid, _wifiPassword, requiresDateTime: true, token: new CancellationTokenSource(60000).Token);
             if (!success)
             {
-                Debug.WriteLine($"Can't connect to wifi: {NetworkHelper.ConnectionError.Error}");
-                if (NetworkHelper.ConnectionError.Exception != null)
+                Debug.WriteLine($"Can't connect to wifi: {WiFiNetworkHelper.Status}");
+                if (WiFiNetworkHelper.HelperException != null)
                 {
                     Debug.WriteLine($"NetworkHelper.ConnectionError.Exception");
                 }
@@ -246,6 +326,8 @@ namespace esp32_control
 
             if (state == "on")
             {
+                startImperialMarch();
+
                 isBlinking = true;
             }
             else
