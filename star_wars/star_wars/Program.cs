@@ -8,14 +8,14 @@ using nanoFramework.Networking;
 using nanoFramework.Json;
 using System.Device.Gpio;
 using System.Security.Cryptography.X509Certificates;
+using nanoFramework.M2Mqtt;
+using Iot.Device.Buzzer;
+using nanoFramework.Hardware.Esp32;
 
 namespace star_wars
 {
     public class Program
     {
-
-        private static string _ssid = "ENTER WIFI SSDI";
-        private static string _wifiPassword = "ENTER WIFI PASSWORD";
 
         // Azure IoTHub settings
         const string _hubName = "ENTER IOT HUB NAME";
@@ -29,8 +29,8 @@ namespace star_wars
         private const int blueLEDPin = 2;
         private static GpioPin redLED;
         private const int redLEDPin = 5;
-        private static GpioPin speaker;
-        private const int speakerPin = 21;
+        private static Buzzer buzzer;
+        private const int buzzerPin = 21;
 
         private static bool isBlinking = false;
 
@@ -62,8 +62,11 @@ namespace star_wars
         {
             Debug.WriteLine("Hello from nanoFramework!");
 
-            DeviceClient azureIoT = new DeviceClient(_hubName, _deviceId, _SasKey);
+            if (!ConnectToWifi()) return;
+
+            DeviceClient azureIoT = new DeviceClient(_IotBrokerAddress, _deviceId, _SasKey, qosLevel: nanoFramework.M2Mqtt.Messages.MqttQoSLevel.AtMostOnce);
             
+
             try
             {
 
@@ -71,15 +74,13 @@ namespace star_wars
 
                 blueLED = s_GpioController.OpenPin(blueLEDPin, PinMode.Output);
                 redLED = s_GpioController.OpenPin(redLEDPin, PinMode.Output);
-                speaker = s_GpioController.OpenPin(speakerPin, PinMode.Output);
 
                 blueLED.Write(PinValue.Low);
                 redLED.Write(PinValue.Low);
-                speaker.Write(PinValue.Low);
 
-                if (!ConnectToWifi()) return;
+                Configuration.SetPinFunction(buzzerPin, DeviceFunction.PWM1);
 
-                azureIoT.TwinUpated += TwinUpdatedEvent;
+                azureIoT.TwinUpdated += TwinUpdatedEvent;
                 azureIoT.StatusUpdated += StatusUpdatedEvent;
                 azureIoT.CloudToDeviceMessage += CloudToDeviceMessageEvent;
                 azureIoT.AddMethodCallback(ControlLight);
@@ -124,19 +125,9 @@ namespace star_wars
 
         public static void beep(int frequencyInHertz, int timeInMilliseconds)
         {
-            int delayAmount = (1000000 / frequencyInHertz);
-            // the lesser delay the higher the note
-
-            int timeInSeconds = timeInMilliseconds * 1000;
-
-            int beepDuration = (timeInSeconds / (delayAmount * 2));
-
-            for (int i = 0; i < beepDuration; i++)
+            using (Buzzer buzzer = new Buzzer(buzzerPin))   // Initialize buzzer with software PWM connected to pin 21.
             {
-                speaker.Write(1);
-                Thread.Sleep(delayAmount);
-                speaker.Write(0);
-                Thread.Sleep(delayAmount);
+                buzzer.PlayTone(frequencyInHertz, timeInMilliseconds); // Play tone with frequency 440 hertz for one second.
             }
 
             Thread.Sleep(20);
@@ -146,99 +137,106 @@ namespace star_wars
         public static void startImperialMarch()
         {
 
-            // for the sheet music see:
-            // http://www.musicnotes.com/sheetmusic/mtd.asp?ppn=MN0016254
-            // this is just a translation of said sheet music to frequencies / time in ms
-            // used 500 ms for a quart note
+            try
+            {
+                // for the sheet music see:
+                // http://www.musicnotes.com/sheetmusic/mtd.asp?ppn=MN0016254
+                // this is just a translation of said sheet music to frequencies / time in ms
+                // used 500 ms for a quart note
 
-            beep(a, 500);
-            beep(a, 500);
-            beep(a, 500);
-            beep(f, 350);
-            beep(cH, 150);
+                beep(a, 500);
+                beep(a, 500);
+                beep(a, 500);
+                beep(f, 350);
+                beep(cH, 150);
 
-            beep(a, 500);
-            beep(f, 350);
-            beep(cH, 150);
-            beep(a, 1000);
-            // first bit
+                beep(a, 500);
+                beep(f, 350);
+                beep(cH, 150);
+                beep(a, 1000);
+                // first bit
 
-            beep(eH, 500);
-            beep(eH, 500);
-            beep(eH, 500);
-            beep(fH, 350);
-            beep(cH, 150);
+                beep(eH, 500);
+                beep(eH, 500);
+                beep(eH, 500);
+                beep(fH, 350);
+                beep(cH, 150);
 
-            beep(gS, 500);
-            beep(f, 350);
-            beep(cH, 150);
-            beep(a, 1000);
-            //second bit...
+                beep(gS, 500);
+                beep(f, 350);
+                beep(cH, 150);
+                beep(a, 1000);
+                //second bit...
 
-            beep(aH, 500);
-            beep(a, 350);
-            beep(a, 150);
-            beep(aH, 500);
-            beep(gSH, 350);
-            beep(gH, 125);
+                beep(aH, 500);
+                beep(a, 350);
+                beep(a, 150);
+                beep(aH, 500);
+                beep(gSH, 350);
+                beep(gH, 125);
 
-            beep(fSH, 125);
-            beep(fH, 125);
-            beep(fSH, 250);
-            Thread.Sleep(250);
-            beep(aS, 250);
-            beep(dSH, 500);
-            beep(dH, 350);
-            beep(cSH, 125);
-            // start of the interesting bit
+                beep(fSH, 125);
+                beep(fH, 125);
+                beep(fSH, 250);
+                Thread.Sleep(250);
+                beep(aS, 250);
+                beep(dSH, 500);
+                beep(dH, 350);
+                beep(cSH, 125);
+                // start of the interesting bit
 
-            beep(cH, 125);
-            beep(b, 125);
-            beep(cH, 250);
-            Thread.Sleep(250);
-            beep(f, 250);
-            beep(gS, 500);
-            beep(f, 375);
-            beep(a, 125);
+                beep(cH, 125);
+                beep(b, 125);
+                beep(cH, 250);
+                Thread.Sleep(250);
+                beep(f, 250);
+                beep(gS, 500);
+                beep(f, 375);
+                beep(a, 125);
 
-            beep(cH, 500);
-            beep(a, 375);
-            beep(cH, 125);
-            beep(eH, 1000);
-            // more interesting stuff
+                beep(cH, 500);
+                beep(a, 375);
+                beep(cH, 125);
+                beep(eH, 1000);
+                // more interesting stuff
 
-            beep(aH, 500);
-            beep(a, 350);
-            beep(a, 150);
-            beep(aH, 500);
-            beep(gSH, 350);
-            beep(gH, 125);
+                beep(aH, 500);
+                beep(a, 350);
+                beep(a, 150);
+                beep(aH, 500);
+                beep(gSH, 350);
+                beep(gH, 125);
 
-            beep(fSH, 125);
-            beep(fH, 125);
-            beep(fSH, 250);
-            Thread.Sleep(250);
-            beep(aS, 250);
-            beep(dSH, 500);
-            beep(dH, 350);
-            beep(cSH, 125);
-            // repeat... repeat
+                beep(fSH, 125);
+                beep(fH, 125);
+                beep(fSH, 250);
+                Thread.Sleep(250);
+                beep(aS, 250);
+                beep(dSH, 500);
+                beep(dH, 350);
+                beep(cSH, 125);
+                // repeat... repeat
 
-            beep(cH, 125);
-            beep(b, 125);
-            beep(cH, 250);
-            Thread.Sleep(250);
-            beep(f, 250);
-            beep(gS, 500);
-            beep(f, 375);
-            beep(cH, 125);
+                beep(cH, 125);
+                beep(b, 125);
+                beep(cH, 250);
+                Thread.Sleep(250);
+                beep(f, 250);
+                beep(gS, 500);
+                beep(f, 375);
+                beep(cH, 125);
 
-            beep(a, 500);
-            beep(f, 375);
-            beep(cH, 125);
-            beep(a, 1000);
-            // and we're done \�/
+                beep(a, 500);
+                beep(f, 375);
+                beep(cH, 125);
+                beep(a, 1000);
+                // and we're done \�/
+            }
+            catch (Exception ex)
+            {
 
+                Debug.WriteLine(ex.ToString());
+            }
             
         }
 
@@ -282,15 +280,17 @@ namespace star_wars
 
         public static bool ConnectToWifi()
         {
+
+            // Connect the ESP32 Device to the Wi-Fi and check the connection...
             Debug.WriteLine("Program Started, connecting to WiFi.");
 
-            // As we are using TLS, we need a valid date & time
-            // We will wait maximum 1 minute to get connected and have a valid date
-            var success = WiFiNetworkHelper.ConnectDhcp(_ssid, _wifiPassword, requiresDateTime: true, token: new CancellationTokenSource(60000).Token);
+            CancellationTokenSource cs = new(60000);            
+            var success = WifiNetworkHelper.Reconnect(requiresDateTime: true, token: cs.Token);
+            
             if (!success)
             {
-                Debug.WriteLine($"Can't connect to wifi: {WiFiNetworkHelper.Status}");
-                if (WiFiNetworkHelper.HelperException != null)
+                Debug.WriteLine($"Can't connect to wifi: {WifiNetworkHelper.Status}");
+                if (WifiNetworkHelper.HelperException != null)
                 {
                     Debug.WriteLine($"NetworkHelper.ConnectionError.Exception");
                 }
@@ -324,11 +324,11 @@ namespace star_wars
 
             Debug.WriteLine("State: " + state);
 
-            if (state == "on")
+            if (state.ToLower() == "on")
             {
-                startImperialMarch();
-
                 isBlinking = true;
+                Thread imperialMarchThread = new Thread(startImperialMarch);
+                imperialMarchThread.Start();
             }
             else
             {

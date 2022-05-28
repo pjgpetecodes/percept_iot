@@ -33,12 +33,13 @@ namespace PerceptIoT.Function
             dynamic data = JsonConvert.DeserializeObject(requestBody);
 
             log.LogInformation($"The State was: {data.state} ");
+            log.LogInformation($"The Device was: {data.device}" );
             
-            string responseMessage = $"This HTTP triggered function executed successfully. The State was {data.state}";
+            string responseMessage = $"This HTTP triggered function executed successfully. The State was {data.state}, the Device was {data.device}";
 
             s_serviceClient = ServiceClient.CreateFromConnectionString(s_connectionString);
 
-            await InvokeMethodAsync(Convert.ToString(data.state));
+            await InvokeMethodAsync(Convert.ToString(data.state), Convert.ToString(data.device));
 
             s_serviceClient.Dispose();
 
@@ -46,7 +47,7 @@ namespace PerceptIoT.Function
         }
 
          // Invoke the direct method on the device, passing the payload
-        private static async Task InvokeMethodAsync(string state)
+        private static async Task InvokeMethodAsync(string state, string device)
         {
             var methodInvocation = new CloudToDeviceMethod("ControlLight")
             {
@@ -56,7 +57,7 @@ namespace PerceptIoT.Function
             methodInvocation.SetPayloadJson("{\"state\": \"" + state + "\"}");
 
             // Invoke the direct method asynchronously and get the response from the simulated device.
-            var response = await s_serviceClient.InvokeDeviceMethodAsync("devicecontrol", methodInvocation);
+            var response = await s_serviceClient.InvokeDeviceMethodAsync(device, methodInvocation);
 
             Console.WriteLine($"\nResponse status: {response.Status}, payload:\n\t{response.GetPayloadAsJson()}");
         }
